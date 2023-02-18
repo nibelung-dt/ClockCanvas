@@ -1,95 +1,79 @@
 package com.example.clockcanvas
 
 import android.content.Context
+import android.content.res.TypedArray
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.View
-import java.lang.Math.cos
-import java.lang.Math.sin
 import java.util.*
-
-class ClockView: View {
-
-
-// https://github.com/lxq666/CanvasClock
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 
-    // compose: https://github.com/beslimir/CanvasLiveClock/tree/master/app/src/main/java/com/example/canvasliveclock
-    // https://www.ssaurel.com/blog/learn-to-draw-an-analog-clock-on-android-with-the-canvas-2d-api/
+class ClockView(context: Context, val attr: AttributeSet): View(context, attr) {
 
-    // https://medium.com/@mayurjajoomj/custom-analog-clock-using-custom-view-android-429cc180f6a3
-// https://www.ssaurel.com/blog/learn-to-draw-an-analog-clock-on-android-with-the-canvas-2d-api/
-    // // https://github.com/tami-sub/Andersen_HW4/tree/master/app/src/main/java/com/example/andersen_hw4
-
-
-    private var height = 0
-    private var width = 0
     private var radius = 0
-    private var angle = 0.0
     private var centreX = 0
     private var centreY = 0
-    private var padding = 0
-    private var isInit = false
-    //private var paint: Paint? = null
-    private lateinit var paint: Paint
-    private var path: Path? = null
-    private var rect: Rect? = null
-    private var numbers = listOf<Int>()     //: IntArray
-    private var minimum = 0
-    private var mHour = 0f
-    private var mMinute = 0f
-    private var mSecond = 0f
-    private var hourHandSize = 0
-    private var handSize = 0
-/*
-    constructor (context: Context, AttributeSet: attrs)  {
-        super(context)
-    }
-*/
+    private val numbers = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 
+    private var isInit = false
+    private lateinit var paint: Paint
+    private var path: Path? = null // что это?
+    private lateinit var rect: Rect
+
+    private var secondArrowColor = 0
+    private var minuteArrowColor = 0
+    private var hourArrowColor = 0
+
+    private var padding = 0
+    private var fontSize = 0
+    private val numeralSpacing = 0
+
+/*
     constructor(context: Context?) : super(context) {
-        //initPaint()
+        init()
     }
 
     constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs) {
-        //initPaint()
+        init()
     }
+ */
 
     private fun init() {
-        // height = height
-        // width = width
         centreX = width/2
         centreY = height/2
-        padding = 50
-        centreX = width / 2
-        centreY = height / 2
-        minimum = Math.min(height, width)
+        padding = numeralSpacing + 50
+
+        val minimum = min(height, width)
         radius = minimum / 2 - padding
-        angle = (Math.PI / 30 - Math.PI / 2).toFloat().toDouble()
+
+        fontSize =
+            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 20F, resources.displayMetrics).toInt()
 
         paint = Paint()
         path = Path()
         rect = Rect()
-        hourHandSize = radius - radius / 2
-        handSize = radius - radius / 4
-        numbers = listOf<Int>(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
         isInit = true
+
+        val taped: TypedArray = context.obtainStyledAttributes(attr, R.styleable.ClockView)
+        secondArrowColor = taped.getColor(R.styleable.ClockView_second_arrow_color, Color.BLUE)
+        minuteArrowColor = taped.getColor(R.styleable.ClockView_minute_arrow_color, Color.RED)
+        hourArrowColor = taped.getColor(R.styleable.ClockView_hour_arrow_color, Color.BLACK)
     }
 
-    // drawLine(), drawCircle(), drawPath()
     override fun onDraw(canvas: Canvas?) {
         if (!isInit) {
             init()
         }
-
         drawCircle(canvas)
-        // drawNumeral(canvas)
-        // drawHands(canvas!!)
+        drawNumbers(canvas)
+        drawHands(canvas!!)
         postInvalidateDelayed(500)
         invalidate()
     }
-
-
 
     private fun drawCircle(canvas: Canvas?){
         paint.reset()
@@ -100,37 +84,43 @@ class ClockView: View {
 
         canvas?.drawCircle((centreX).toFloat(), (centreY).toFloat(),
             (radius + padding - 10).toFloat(), paint)
-
     }
 
-    // рисуем стрелки
-    private fun drawHands(canvas: Canvas) {
+    private fun drawNumbers(canvas: Canvas?) {
+        paint.textSize = fontSize.toFloat()
+
+        for (number in numbers){
+            val tmp = number.toString()
+            paint.getTextBounds(tmp,0,tmp.length,rect)
+            val angle = Math.PI/6 * (number-3)
+            val x = ((centreX + cos(angle) * radius - rect.width() / 2).toFloat())
+            val y = ((centreY + sin(angle) * radius + rect.height() / 2).toFloat())
+            canvas?.drawText(tmp,x,y, paint)
+        }
+    }
+
+    private fun drawHands(canvas: Canvas){
         val calendar = Calendar.getInstance()
         var hour = calendar.get(Calendar.HOUR_OF_DAY)
         hour = if (hour > 12) hour - 12 else hour
-        //paint.color = hourArrowColor
-        //drawHand(canvas, ((hour + calendar.get(Calendar.MINUTE) / 60) * 5f), true)
-        drawHand(canvas, ((hour + calendar.get(Calendar.HOUR)) * 5f), true) // проверить
-        //paint.color = secondArrowColor
-        drawHand(canvas, calendar.get(Calendar.MINUTE).toFloat(), false)
-       // paint.color = minuteArrowColor
-        drawHand(canvas, calendar.get(Calendar.SECOND).toFloat(), false)
+        paint.color = hourArrowColor
+        drawHand(canvas, ((hour + calendar.get(Calendar.MINUTE) / 60) * 5f), "hour")
+        paint.color = secondArrowColor
+        drawHand(canvas, calendar.get(Calendar.MINUTE).toFloat(), "minute")
+        paint.color = minuteArrowColor
+        drawHand(canvas, calendar.get(Calendar.SECOND).toFloat(), "second")
     }
 
-
-    private fun drawHand(canvas: Canvas?, loc: Float, isHour: Boolean){
+    private fun drawHand(canvas: Canvas?, loc: Float, typeOfHand: String){
         val angle = Math.PI * loc / 30 - Math.PI / 2
-        val handRadius = if (isHour) radius - handTruncation - hourHandTruncation else radius - handTruncation
+        val handRadius = when(typeOfHand) {
+            "hour" -> (radius / 1.5).toFloat()
+            "minute" -> (radius / 1.85).toFloat()
+            else -> radius
+        }
+
         canvas!!.drawLine((centreX).toFloat(), (centreY).toFloat(),
-            (centreX+cos(angle)*handRadius).toFloat(), (centreY + sin(angle) * handRadius).toFloat(),
+            (centreX+cos(angle)*handRadius.toFloat()).toFloat(), (centreY+ sin(angle)*handRadius.toFloat()).toFloat(),
             paint)
     }
-
-    // создание чисел на циферблате
-    private fun drawNumeral(canvas: Canvas) {
-
-    }
-
 }
-
-
